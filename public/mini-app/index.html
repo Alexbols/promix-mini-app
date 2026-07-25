@@ -72,10 +72,15 @@
     tg.ready();
     tg.expand();
 
-    // Получаем данные из initData
-    const initData = tg.initData || '';
-    const initDataUnsafe = tg.initDataUnsafe || {};
-    const task = initDataUnsafe.query ? JSON.parse(initDataUnsafe.query) : {};
+    // ✅ ИСПРАВЛЕНО: Получаем данные из URL-параметров, а не из initDataUnsafe.query
+    const urlParams = new URLSearchParams(window.location.search);
+    const task = {
+      id: urlParams.get('task_id'),
+      type: urlParams.get('type'),
+      title: urlParams.get('title'),
+      reward: urlParams.get('reward'),
+      link: urlParams.get('link')
+    };
 
     const els = {
       loading: document.getElementById('loading'),
@@ -106,6 +111,7 @@
 
     // Инициализация
     function init() {
+      // ✅ Проверка данных из URL
       if (!task.id || !task.type) {
         showError('Неверные данные задания');
         return;
@@ -136,8 +142,12 @@
       if (task.link) {
         // Для Telegram-постов используем embed
         if (task.link.includes('t.me/')) {
-          const postId = task.link.split('/').pop();
-          els.embedFrame.src = `https://t.me/${task.link.split('/')[3]}/${postId}?embed=1`;
+          const parts = task.link.split('/');
+          const channel = parts[3];
+          const postId = parts[4];
+          if (channel && postId) {
+            els.embedFrame.src = `https://t.me/${channel}/${postId}?embed=1&mode=dark`;
+          }
         } else {
           els.embedFrame.src = task.link;
         }
@@ -194,7 +204,7 @@
       // Данные для верификации
       const verification = {
         task_id: task.id,
-        user_id: initDataUnsafe.user?.id,
+        user_id: tg.initDataUnsafe.user?.id,
         type: task.type,
         time_spent: timeSpent,
         reacted: reacted,
@@ -204,7 +214,7 @@
       // Отправляем через sendData (подписано Telegram)
       tg.sendData(JSON.stringify(verification));
       
-      // Закрываем через 1 сек (Telegram сам закроет после sendData)
+      // Закрываем через 1 сек
       setTimeout(() => tg.close(), 1000);
     });
 
@@ -216,11 +226,7 @@
     }
 
     // Запуск
-    if (initData) {
-      init();
-    } else {
-      showError('Откройте через Telegram-бота');
-    }
+    init();
   </script>
 </body>
 </html>
