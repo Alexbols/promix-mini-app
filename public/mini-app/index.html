@@ -11,26 +11,25 @@
     .gradient { background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7); }
     .pulse { animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    .reaction-btn { transition: all 0.2s; }
+    .reaction-btn:hover { transform: scale(1.1); }
+    .reaction-btn.selected { background: linear-gradient(135deg, #6366f1, #8b5cf6); transform: scale(1.15); box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
   
-  <!-- Загрузка -->
   <div id="loading" class="text-center">
     <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
     <p class="text-slate-400">Загрузка задания...</p>
   </div>
 
-  <!-- Контент задания -->
   <div id="content" class="hidden w-full max-w-sm">
-    
-    <!-- Заголовок -->
     <div class="gradient p-4 rounded-xl mb-4 text-center">
       <h1 class="text-xl font-bold" id="task-title">Задание</h1>
       <p class="text-sm opacity-90" id="task-reward">💰 15 PMC</p>
     </div>
 
-    <!-- Прогресс времени (для view) -->
+    <!-- Прогресс для VIEW -->
     <div id="view-progress" class="hidden mb-4">
       <p class="text-center text-sm text-slate-400 mb-2">Просмотрите контент <b id="timer">15</b> секунд</p>
       <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -38,18 +37,26 @@
       </div>
     </div>
 
-    <!-- Контент для просмотра -->
+    <!-- Контент для VIEW -->
     <div id="view-content" class="hidden bg-slate-800 p-4 rounded-xl mb-4">
       <iframe id="embed-frame" class="w-full h-48 rounded-lg border border-slate-700" frameborder="0"></iframe>
-      <p class="text-xs text-slate-500 mt-2">⚠️ Не закрывайте окно до завершения таймера</p>
+      <p class="text-xs text-slate-500 mt-2">⚠️ Не закрывайте окно до завершения</p>
     </div>
 
-    <!-- Кнопка реакции (для react) -->
-    <div id="react-btn" class="hidden text-center mb-4">
-      <button id="react-click" class="gradient px-6 py-3 rounded-xl font-bold text-lg pulse">
-        ❤️ Поставить реакцию
-      </button>
-      <p class="text-xs text-slate-500 mt-2">Нажмите, чтобы выполнить задание</p>
+    <!-- ✅ Кнопки разных реакций для REACT -->
+    <div id="react-btn" class="hidden mb-4">
+      <p class="text-center text-sm text-slate-400 mb-3">Выберите любую реакцию:</p>
+      <div class="grid grid-cols-4 gap-3">
+        <button data-reaction="👍" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">👍</button>
+        <button data-reaction="❤️" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">❤️</button>
+        <button data-reaction="🔥" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">🔥</button>
+        <button data-reaction="🎉" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">🎉</button>
+        <button data-reaction="😮" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">😮</button>
+        <button data-reaction="😢" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">😢</button>
+        <button data-reaction="😡" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">😡</button>
+        <button data-reaction="🤔" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-4 rounded-xl text-3xl">🤔</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-3 text-center">Нажмите на любую реакцию</p>
     </div>
 
     <!-- Кнопка завершения -->
@@ -57,11 +64,9 @@
       ✨ Выполнить задание
     </button>
 
-    <!-- Статус -->
     <p id="status" class="text-center text-sm text-slate-400 mt-3"></p>
   </div>
 
-  <!-- Ошибка -->
   <div id="error" class="hidden text-center text-red-400">
     <p>❌ Ошибка загрузки задания</p>
     <button onclick="Telegram.WebApp.close()" class="mt-4 text-indigo-400 underline">Закрыть</button>
@@ -72,7 +77,6 @@
     tg.ready();
     tg.expand();
 
-    // ✅ ИСПРАВЛЕНО: Получаем данные из URL-параметров, а не из initDataUnsafe.query
     const urlParams = new URLSearchParams(window.location.search);
     const task = {
       id: urlParams.get('task_id'),
@@ -94,24 +98,20 @@
       viewContent: document.getElementById('view-content'),
       embedFrame: document.getElementById('embed-frame'),
       reactBtn: document.getElementById('react-btn'),
-      reactClick: document.getElementById('react-click'),
       completeBtn: document.getElementById('complete-btn'),
       status: document.getElementById('status')
     };
 
-    // Типы заданий
     const TASK_TYPES = {
       view: { minTime: 15, label: 'Просмотр' },
       react: { minTime: 0, label: 'Реакция' }
     };
 
     let timeSpent = 0;
-    let reacted = false;
+    let reaction = null; // Выбранная реакция
     let timerInterval = null;
 
-    // Инициализация
     function init() {
-      // ✅ Проверка данных из URL
       if (!task.id || !task.type) {
         showError('Неверные данные задания');
         return;
@@ -120,27 +120,19 @@
       els.title.textContent = task.title || 'Задание';
       els.reward.textContent = `💰 ${task.reward} PMC`;
 
-      if (task.type === 'view') {
-        setupViewTask();
-      } else if (task.type === 'react') {
-        setupReactTask();
-      } else {
-        showError('Неподдерживаемый тип задания');
-        return;
-      }
+      if (task.type === 'view') setupViewTask();
+      else if (task.type === 'react') setupReactTask();
+      else { showError('Неподдерживаемый тип задания'); return; }
 
       els.loading.classList.add('hidden');
       els.content.classList.remove('hidden');
     }
 
-    // Настройка задания "Просмотр"
     function setupViewTask() {
       els.viewProgress.classList.remove('hidden');
       els.viewContent.classList.remove('hidden');
       
-      // Загружаем контент (если есть ссылка)
       if (task.link) {
-        // Для Telegram-постов используем embed
         if (task.link.includes('t.me/')) {
           const parts = task.link.split('/');
           const channel = parts[3];
@@ -153,7 +145,6 @@
         }
       }
 
-      // Таймер
       const minTime = TASK_TYPES.view.minTime;
       let remaining = minTime;
       
@@ -171,62 +162,59 @@
       }, 1000);
     }
 
-    // Настройка задания "Реакция"
     function setupReactTask() {
       els.reactBtn.classList.remove('hidden');
       
-      els.reactClick.addEventListener('click', () => {
-        if (reacted) return;
-        reacted = true;
-        els.reactClick.classList.remove('pulse');
-        els.reactClick.innerHTML = '✅ Реакция поставлена!';
-        els.reactClick.disabled = true;
-        els.status.textContent = 'Отлично! Теперь завершите задание.';
-        enableComplete();
+      // ✅ Обработчики для всех кнопок реакций
+      document.querySelectorAll('.reaction-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          // Убираем выделение с других кнопок
+          document.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('selected'));
+          
+          // Выделяем выбранную
+          btn.classList.add('selected');
+          reaction = btn.getAttribute('data-reaction');
+          
+          els.status.textContent = `Выбрана реакция: ${reaction}`;
+          enableComplete();
+        });
       });
     }
 
-    // Активировать кнопку завершения
     function enableComplete() {
       if (task.type === 'view' && timeSpent >= TASK_TYPES.view.minTime) {
         els.completeBtn.disabled = false;
       }
-      if (task.type === 'react' && reacted) {
+      if (task.type === 'react' && reaction) {
         els.completeBtn.disabled = false;
       }
     }
 
-    // Отправка данных боту
     els.completeBtn.addEventListener('click', () => {
       els.completeBtn.disabled = true;
       els.status.textContent = '🔄 Проверка...';
 
-      // Данные для верификации
       const verification = {
         task_id: task.id,
         user_id: tg.initDataUnsafe.user?.id,
         type: task.type,
         time_spent: timeSpent,
-        reacted: reacted,
+        reaction: reaction, // ✅ Отправляем выбранную реакцию
         timestamp: Date.now()
       };
 
-      // Отправляем через sendData (подписано Telegram)
       tg.sendData(JSON.stringify(verification));
-      
-      // Закрываем через 1 сек
       setTimeout(() => tg.close(), 1000);
     });
 
-    // Ошибка
     function showError(msg) {
       els.loading.classList.add('hidden');
       els.error.classList.remove('hidden');
       els.error.querySelector('p').textContent = `❌ ${msg}`;
     }
 
-    // Запуск
-    init();
+    if (window.location.search) init();
+    else showError('Откройте через Telegram-бота');
   </script>
 </body>
 </html>
