@@ -5,337 +5,450 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Promix Task</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
-      background: #0f172a; 
-      color: #f8fafc; 
-      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0;
-      padding: 16px;
+      padding: 20px;
     }
-    .gradient-bg { background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7); }
-    .card { background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(12px); border: 1px solid #334155; }
-    .reaction-btn { 
-      transition: all 0.2s ease; 
-      cursor: pointer;
-      user-select: none;
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
     }
-    .reaction-btn:active { transform: scale(0.92); }
-    .reaction-btn.selected { 
-      background: linear-gradient(135deg, #6366f1, #8b5cf6); 
-      transform: scale(1.12); 
-      box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);
-      border-color: #818cf8;
+    .gradient {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+    }
+    .gradient h1 { font-size: 22px; margin-bottom: 8px; }
+    .gradient p { opacity: 0.9; font-size: 16px; font-weight: 600; }
+    
+    .timer-display {
+      font-size: 48px;
+      font-weight: 700;
+      text-align: center;
+      margin: 20px 0;
+      color: #667eea;
+    }
+    
+    .progress-container {
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 20px;
     }
     .progress-bar {
-      height: 6px;
-      background: #1e293b;
-      border-radius: 999px;
-      overflow: hidden;
-      position: relative;
-    }
-    .progress-fill {
       height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
       width: 0%;
-      background: linear-gradient(90deg, #6366f1, #a855f7);
-      border-radius: 999px;
-      transition: width 0.3s ease;
+      transition: width 1s linear;
     }
-    .checkmark {
-      stroke-dasharray: 100;
-      stroke-dashoffset: 100;
-      animation: drawCheck 0.8s ease forwards;
+    
+    .reactions-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 20px 0;
     }
-    @keyframes drawCheck { to { stroke-dashoffset: 0; } }
-    .confetti {
-      position: fixed;
-      top: -10px;
-      width: 8px;
-      height: 8px;
-      border-radius: 2px;
-      animation: fall linear forwards;
-      pointer-events: none;
+    .reaction-btn {
+      background: rgba(255,255,255,0.08);
+      border: 2px solid transparent;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 32px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
     }
-    @keyframes fall {
-      0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    .reaction-btn:hover { background: rgba(255,255,255,0.15); transform: scale(1.05); }
+    .reaction-btn.selected {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-color: #fff;
+      transform: scale(1.1);
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 12px;
     }
     .btn-primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      transition: all 0.2s;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
     }
-    .btn-primary:active { transform: scale(0.96); }
-    .btn-primary:disabled { opacity: 0.5; transform: none; cursor: not-allowed; }
-    iframe { background: #1e293b; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+      border: 1px solid #667eea;
+    }
+    
+    .status {
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .status.info { background: rgba(102, 126, 234, 0.15); color: #a5b4fc; }
+    .status.success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; }
+    .status.error { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+    
+    .info-block {
+      background: rgba(102, 126, 234, 0.1);
+      border-left: 3px solid #667eea;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    
+    iframe {
+      width: 100%;
+      height: 300px;
+      border: none;
+      border-radius: 12px;
+      background: #fff;
+    }
+    
+    .hidden { display: none !important; }
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
   </style>
 </head>
 <body>
-
-  <div id="loading" class="text-center">
-    <div class="w-14 h-14 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-    <p class="text-slate-400 text-sm">Загрузка задания...</p>
+  
+  <div id="loading" style="text-align: center; padding: 40px 20px;">
+    <div style="width: 60px; height: 60px; border: 4px solid #667eea; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+    <p>Загрузка задания...</p>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
   </div>
 
-  <div id="content" class="hidden w-full max-w-md space-y-4">
-    <!-- Шапка -->
-    <div class="gradient-bg p-5 rounded-2xl text-center shadow-lg">
-      <h1 class="text-xl font-bold" id="task-title">Задание</h1>
-      <p class="text-sm opacity-90 mt-1" id="task-reward">💰 15 PMC</p>
+  <div id="content" class="hidden">
+    <div class="gradient">
+      <h1 id="task-title">Задание</h1>
+      <p id="task-reward">💰 15 PMC</p>
     </div>
 
-    <!-- Прогресс просмотра -->
-    <div id="view-progress" class="hidden card p-4 rounded-xl">
-      <div class="flex justify-between text-sm text-slate-300 mb-1">
-        <span>⏳ Осталось:</span>
-        <span><b id="timer">15</b> сек</span>
+    <!-- VIEW: Просмотр поста -->
+    <div id="view-section" class="hidden">
+      <div class="card">
+        <h3 style="margin-bottom: 12px;">👁 Просмотрите пост</h3>
+        <div class="info-block">
+          ⏱️ Оставайтесь на странице <b id="timer-display">15</b> секунд для засчитывания просмотра
+        </div>
+        
+        <div id="iframe-container" style="margin: 16px 0;">
+          <iframe id="embed-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+        </div>
+        
+        <button id="open-link-btn" class="btn btn-secondary">
+          🔗 Открыть пост в Telegram
+        </button>
+        
+        <div class="timer-display" id="timer-big">15</div>
+        
+        <div class="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
       </div>
-      <div class="progress-bar">
-        <div id="progress-bar" class="progress-fill"></div>
+    </div>
+
+    <!-- REACT: Реакция на пост -->
+    <div id="react-section" class="hidden">
+      <div class="card">
+        <h3 style="margin-bottom: 12px;">❤️ Поставьте реакцию</h3>
+        
+        <div class="info-block">
+          1️⃣ Откройте пост по кнопке ниже<br>
+          2️⃣ Поставьте любую реакцию<br>
+          3️⃣ Вернитесь и выберите ту же реакцию здесь
+        </div>
+        
+        <button id="open-post-btn" class="btn btn-secondary" style="margin-bottom: 16px;">
+          🔗 Открыть пост в Telegram
+        </button>
+        
+        <h4 style="margin: 16px 0 12px;">Выберите вашу реакцию:</h4>
+        <div class="reactions-grid" id="reactions-grid">
+          <button class="reaction-btn" data-reaction="👍">👍</button>
+          <button class="reaction-btn" data-reaction="❤️">❤️</button>
+          <button class="reaction-btn" data-reaction="🔥">🔥</button>
+          <button class="reaction-btn" data-reaction="🎉">🎉</button>
+          <button class="reaction-btn" data-reaction="😮">😮</button>
+          <button class="reaction-btn" data-reaction="😢">😢</button>
+          <button class="reaction-btn" data-reaction="😡">😡</button>
+          <button class="reaction-btn" data-reaction="🤔">🤔</button>
+          <button class="reaction-btn" data-reaction="👏">👏</button>
+          <button class="reaction-btn" data-reaction="🤩">🤩</button>
+          <button class="reaction-btn" data-reaction="😱">😱</button>
+          <button class="reaction-btn" data-reaction="💩">💩</button>
+        </div>
       </div>
     </div>
 
-    <!-- Контент для просмотра -->
-    <div id="view-content" class="hidden card p-3 rounded-xl">
-      <iframe id="embed-frame" class="w-full h-52 rounded-lg border border-slate-700" frameborder="0"></iframe>
-      <p class="text-xs text-slate-500 mt-2 text-center">⚠️ Не закрывайте окно до завершения</p>
-    </div>
-
-    <!-- Реакции -->
-    <div id="react-btn" class="hidden card p-4 rounded-xl">
-      <p class="text-center text-sm text-slate-300 mb-3">Выберите реакцию:</p>
-      <div class="grid grid-cols-4 gap-2">
-        <button data-reaction="👍" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">👍</button>
-        <button data-reaction="❤️" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">❤️</button>
-        <button data-reaction="🔥" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">🔥</button>
-        <button data-reaction="🎉" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">🎉</button>
-        <button data-reaction="😮" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">😮</button>
-        <button data-reaction="😢" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">😢</button>
-        <button data-reaction="😡" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">😡</button>
-        <button data-reaction="🤔" class="reaction-btn bg-slate-700 hover:bg-slate-600 p-3 rounded-xl text-2xl border border-transparent">🤔</button>
-      </div>
-      <p class="text-xs text-slate-500 mt-3 text-center">Нажмите на любую реакцию</p>
-    </div>
-
-    <!-- Кнопка выполнения -->
-    <button id="complete-btn" class="btn-primary w-full text-white font-bold py-3.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition" disabled>
+    <button id="complete-btn" class="btn btn-primary" disabled>
       ✨ Выполнить задание
     </button>
 
-    <!-- Статус -->
-    <div id="status" class="text-center text-sm text-slate-400"></div>
-
-    <!-- Анимация успеха -->
-    <div id="success-animation" class="hidden text-center">
-      <svg class="w-20 h-20 mx-auto text-emerald-400" viewBox="0 0 100 100">
-        <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="6" fill="none"/>
-        <polyline class="checkmark" points="30,50 45,65 70,35" stroke="currentColor" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <p class="text-xl font-bold text-emerald-400 mt-2">Выполнено!</p>
-      <p class="text-sm text-slate-400">Задание засчитано, награда получена</p>
-    </div>
+    <div id="status" class="status info hidden"></div>
   </div>
 
-  <div id="error" class="hidden text-center text-red-400">
-    <p>❌ Ошибка загрузки задания</p>
-    <button onclick="Telegram.WebApp.close()" class="mt-4 text-indigo-400 underline">Закрыть</button>
+  <div id="error" class="hidden" style="text-align: center; padding: 40px 20px;">
+    <div style="font-size: 64px; margin-bottom: 20px;">❌</div>
+    <h2 style="margin-bottom: 12px;">Ошибка</h2>
+    <p id="error-msg" style="margin-bottom: 20px; opacity: 0.8;"></p>
+    <button onclick="Telegram.WebApp.close()" class="btn btn-secondary" style="max-width: 200px; margin: 0 auto;">
+      Закрыть
+    </button>
   </div>
 
   <script>
-    (function() {
-      console.log('🚀 Mini App загружается...');
+    // ============ ИНИЦИАЛИЗАЦИЯ ============
+    console.log('🚀 Mini App запускается...');
+    
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('error').classList.remove('hidden');
+      document.getElementById('error-msg').textContent = 'Откройте через Telegram';
+      throw new Error('Telegram WebApp not found');
+    }
+    
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor?.('#1a1a2e');
+    tg.setBackgroundColor?.('#1a1a2e');
+    
+    console.log('✅ Telegram WebApp готов');
+    console.log('👤 User:', tg.initDataUnsafe?.user);
 
-      const tg = Telegram.WebApp;
-      tg.ready();
-      tg.expand();
+    // ============ ПАРСИНГ ДАННЫХ ============
+    const params = new URLSearchParams(window.location.search);
+    const task = {
+      id: params.get('task_id'),
+      type: params.get('type'),
+      title: decodeURIComponent(params.get('title') || ''),
+      reward: params.get('reward'),
+      link: decodeURIComponent(params.get('link') || ''),
+      chatId: params.get('chat_id'),
+      messageId: params.get('message_id')
+    };
 
-      console.log('✅ Telegram WebApp инициализирован');
-      console.log('👤 user:', tg.initDataUnsafe.user);
+    console.log('📋 Задание:', task);
 
-      const urlParams = new URLSearchParams(window.location.search);
-      console.log('🔗 URL params:', Object.fromEntries(urlParams));
+    // ============ ЭЛЕМЕНТЫ ============
+    const $ = id => document.getElementById(id);
+    const loading = $('loading');
+    const content = $('content');
+    const error = $('error');
+    const errorMsg = $('error-msg');
+    const title = $('task-title');
+    const reward = $('task-reward');
+    const viewSection = $('view-section');
+    const reactSection = $('react-section');
+    const completeBtn = $('complete-btn');
+    const status = $('status');
+    const embedFrame = $('embed-frame');
+    const timerBig = $('timer-big');
+    const timerDisplay = $('timer-display');
+    const progressBar = $('progress-bar');
 
-      const task = {
-        id: urlParams.get('task_id'),
-        type: urlParams.get('type'),
-        title: urlParams.get('title'),
-        reward: urlParams.get('reward'),
-        link: urlParams.get('link'),
-        chatId: urlParams.get('chat_id'),
-        messageId: urlParams.get('message_id')
-      };
+    // ============ СОСТОЯНИЕ ============
+    let state = {
+      timeSpent: 0,
+      reaction: null,
+      postOpened: false,
+      completed: false
+    };
 
-      const els = {
-        loading: document.getElementById('loading'),
-        content: document.getElementById('content'),
-        error: document.getElementById('error'),
-        title: document.getElementById('task-title'),
-        reward: document.getElementById('task-reward'),
-        viewProgress: document.getElementById('view-progress'),
-        timer: document.getElementById('timer'),
-        progressBar: document.getElementById('progress-bar'),
-        viewContent: document.getElementById('view-content'),
-        embedFrame: document.getElementById('embed-frame'),
-        reactBtn: document.getElementById('react-btn'),
-        completeBtn: document.getElementById('complete-btn'),
-        status: document.getElementById('status'),
-        successAnim: document.getElementById('success-animation')
-      };
+    const VIEW_TIME = 15;
+    const VALID_REACTIONS = ['👍','❤️','🔥','🎉','😮','😢','😡','🤔','👏','🤩','😱','💩','👎','🤯'];
 
-      const VIEW_MIN_TIME = 15; // seconds
-      let timeSpent = 0;
-      let reaction = null;
-      let timerInterval = null;
-      let isCompleted = false;
+    // ============ ФУНКЦИИ ============
+    function showError(msg) {
+      console.error('❌', msg);
+      loading.classList.add('hidden');
+      content.classList.add('hidden');
+      error.classList.remove('hidden');
+      errorMsg.textContent = msg;
+    }
 
-      function init() {
-        if (!task.id || !task.type) {
-          showError('Неверные данные задания');
-          return;
-        }
+    function showStatus(msg, type = 'info') {
+      status.classList.remove('hidden', 'info', 'success', 'error');
+      status.classList.add(type);
+      status.textContent = msg;
+    }
 
-        els.title.textContent = task.title || 'Задание';
-        els.reward.textContent = `💰 ${task.reward} PMC`;
-
-        if (task.type === 'view') setupViewTask();
-        else if (task.type === 'react') setupReactTask();
-        else {
-          showError('Неподдерживаемый тип задания');
-          return;
-        }
-
-        els.loading.classList.add('hidden');
-        els.content.classList.remove('hidden');
+    function enableComplete() {
+      if (task.type === 'view' && state.timeSpent >= VIEW_TIME) {
+        completeBtn.disabled = false;
+        showStatus('✅ Готово! Нажмите "Выполнить"', 'success');
       }
+      if (task.type === 'react' && state.reaction && state.postOpened) {
+        completeBtn.disabled = false;
+        showStatus('✅ Готово! Нажмите "Выполнить"', 'success');
+      }
+    }
 
-      function setupViewTask() {
-        els.viewProgress.classList.remove('hidden');
-        els.viewContent.classList.remove('hidden');
-
-        if (task.link) {
-          if (task.link.includes('t.me/')) {
-            const parts = task.link.split('/');
-            const channel = parts[3];
-            const postId = parts[4];
-            if (channel && postId) {
-              els.embedFrame.src = `https://t.me/${channel}/${postId}?embed=1&mode=dark`;
-            }
-          } else {
-            els.embedFrame.src = task.link;
+    // ============ VIEW: ПРОСМОТ ============
+    function setupView() {
+      viewSection.classList.remove('hidden');
+      
+      // Загружаем embed
+      if (task.link) {
+        if (task.link.includes('t.me/')) {
+          const parts = task.link.replace('https://', '').split('/');
+          const channel = parts[1];
+          const postId = parts[2];
+          if (channel && postId) {
+            embedFrame.src = `https://t.me/${channel}/${postId}?embed=1&discussion=1`;
           }
-        }
-
-        let remaining = VIEW_MIN_TIME;
-        timerInterval = setInterval(() => {
-          timeSpent++;
-          remaining = Math.max(0, VIEW_MIN_TIME - timeSpent);
-          els.timer.textContent = remaining;
-          const pct = Math.min(100, (timeSpent / VIEW_MIN_TIME) * 100);
-          els.progressBar.style.width = pct + '%';
-
-          if (remaining <= 0) {
-            clearInterval(timerInterval);
-            els.status.textContent = '✅ Время просмотра истекло!';
-            enableComplete();
-          }
-        }, 1000);
-      }
-
-      function setupReactTask() {
-        els.reactBtn.classList.remove('hidden');
-        document.querySelectorAll('.reaction-btn').forEach(btn => {
-          btn.addEventListener('click', function() {
-            const emoji = this.getAttribute('data-reaction');
-            document.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('selected'));
-            this.classList.add('selected');
-            reaction = emoji;
-            els.status.textContent = `Выбрана реакция: ${reaction}`;
-            enableComplete();
-          });
-        });
-      }
-
-      function enableComplete() {
-        if (isCompleted) return;
-        if (task.type === 'view' && timeSpent >= VIEW_MIN_TIME) {
-          els.completeBtn.disabled = false;
-        }
-        if (task.type === 'react' && reaction) {
-          els.completeBtn.disabled = false;
+        } else {
+          embedFrame.src = task.link;
         }
       }
 
-      function generateConfetti() {
-        const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590'];
-        for (let i = 0; i < 50; i++) {
-          const el = document.createElement('div');
-          el.className = 'confetti';
-          el.style.left = Math.random() * 100 + '%';
-          el.style.background = colors[Math.floor(Math.random() * colors.length)];
-          el.style.width = (Math.random() * 8 + 4) + 'px';
-          el.style.height = (Math.random() * 8 + 4) + 'px';
-          el.style.animationDuration = (Math.random() * 1.5 + 1) + 's';
-          el.style.animationDelay = (Math.random() * 0.6) + 's';
-          document.body.appendChild(el);
-          setTimeout(() => el.remove(), 2500);
-        }
-      }
-
-      els.completeBtn.addEventListener('click', function() {
-        if (isCompleted) return;
-        isCompleted = true;
-        this.disabled = true;
-        els.status.textContent = '🔄 Отправка данных...';
-
-        const verification = {
-          task_id: task.id,
-          user_id: tg.initDataUnsafe.user?.id,
-          type: task.type,
-          time_spent: timeSpent,
-          reaction: reaction,
-          chat_id: task.chatId,
-          message_id: task.messageId,
-          timestamp: Date.now()
-        };
-
-        console.log('📤 Отправка данных боту:', verification);
-
-        try {
-          tg.sendData(JSON.stringify(verification));
-          els.status.textContent = '✅ Данные отправлены!';
-          this.classList.add('hidden');
-          els.successAnim.classList.remove('hidden');
-          generateConfetti();
-
-          setTimeout(() => {
-            tg.close();
-          }, 2000);
-        } catch (err) {
-          console.error('❌ Ошибка sendData:', err);
-          els.status.textContent = '❌ Ошибка отправки: ' + err.message;
-          isCompleted = false;
-          this.disabled = false;
+      // Кнопка "Открыть в Telegram"
+      $('open-link-btn').addEventListener('click', () => {
+        if (tg.openTelegramLink && task.link) {
+          tg.openTelegramLink(task.link);
+        } else {
+          window.open(task.link, '_blank');
         }
       });
 
-      function showError(msg) {
-        els.loading.classList.add('hidden');
-        els.error.classList.remove('hidden');
-        els.error.querySelector('p').textContent = `❌ ${msg}`;
+      // Таймер
+      let remaining = VIEW_TIME;
+      const timer = setInterval(() => {
+        state.timeSpent++;
+        remaining = Math.max(0, VIEW_TIME - state.timeSpent);
+        timerBig.textContent = remaining;
+        timerDisplay.textContent = remaining;
+        progressBar.style.width = `${(state.timeSpent / VIEW_TIME) * 100}%`;
+        
+        if (remaining <= 0) {
+          clearInterval(timer);
+          timerBig.textContent = '✓';
+          timerBig.style.color = '#10b981';
+          enableComplete();
+        }
+      }, 1000);
+    }
+
+    // ============ REACT: РЕАКЦИЯ ============
+    function setupReact() {
+      reactSection.classList.remove('hidden');
+      
+      // Кнопка "Открыть пост"
+      $('open-post-btn').addEventListener('click', () => {
+        state.postOpened = true;
+        showStatus('📱 Пост открыт! Поставьте реакцию и вернитесь', 'info');
+        
+        if (tg.openTelegramLink && task.link) {
+          tg.openTelegramLink(task.link);
+        } else {
+          window.open(task.link, '_blank');
+        }
+        
+        enableComplete();
+      });
+
+      // Кнопки реакций
+      document.querySelectorAll('.reaction-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          state.reaction = btn.dataset.reaction;
+          console.log('🎭 Реакция выбрана:', state.reaction);
+          enableComplete();
+        });
+      });
+    }
+
+    // ============ ОТПРАВКА ДАННЫХ ============
+    completeBtn.addEventListener('click', () => {
+      if (state.completed) return;
+      state.completed = true;
+      
+      completeBtn.disabled = true;
+      completeBtn.textContent = '⏳ Отправка...';
+      showStatus('🔄 Отправка данных боту...', 'info');
+
+      const payload = {
+        task_id: task.id,
+        user_id: tg.initDataUnsafe?.user?.id,
+        type: task.type,
+        time_spent: state.timeSpent,
+        reaction: state.reaction,
+        post_opened: state.postOpened,
+        chat_id: task.chatId,
+        message_id: task.messageId,
+        link: task.link,
+        ts: Date.now()
+      };
+
+      console.log('📤 Отправка:', payload);
+
+      try {
+        tg.sendData(JSON.stringify(payload));
+        showStatus('✅ Данные отправлены! Закрываем...', 'success');
+        
+        setTimeout(() => {
+          console.log('🔒 Закрытие Mini App');
+          tg.close();
+        }, 800);
+      } catch (err) {
+        console.error('❌ Ошибка sendData:', err);
+        showStatus('❌ Ошибка: ' + err.message, 'error');
+        state.completed = false;
+        completeBtn.disabled = false;
+      }
+    });
+
+    // ============ ЗАПУСК ============
+    function init() {
+      if (!task.id || !task.type) {
+        showError('Неверные данные задания. Откройте через бота.');
+        return;
       }
 
-      // Запуск
-      if (window.location.search) {
-        init();
+      title.textContent = task.title || 'Задание';
+      reward.textContent = `💰 ${task.reward} PMC`;
+
+      if (task.type === 'view') {
+        setupView();
+      } else if (task.type === 'react') {
+        setupReact();
       } else {
-        showError('Откройте через Telegram-бота');
+        showError('Неизвестный тип задания: ' + task.type);
+        return;
       }
-    })();
+
+      loading.classList.add('hidden');
+      content.classList.remove('hidden');
+      console.log('✅ Mini App готов');
+    }
+
+    init();
   </script>
 </body>
 </html>
