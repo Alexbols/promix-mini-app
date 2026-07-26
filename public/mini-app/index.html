@@ -14,10 +14,27 @@
     .reaction-btn { transition: all 0.2s; }
     .reaction-btn:hover { transform: scale(1.1); }
     .reaction-btn.selected { background: linear-gradient(135deg, #6366f1, #8b5cf6); transform: scale(1.15); box-shadow: 0 0 20px rgba(99, 102, 241, 0.5); }
+    .checkmark {
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: drawCheck 0.8s ease forwards;
+    }
+    @keyframes drawCheck { to { stroke-dashoffset: 0; } }
+    .confetti {
+      position: fixed;
+      top: -10px;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      animation: fall 2s ease-in forwards;
+    }
+    @keyframes fall {
+      to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
-  
+
   <div id="loading" class="text-center">
     <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
     <p class="text-slate-400">Загрузка задания...</p>
@@ -60,7 +77,16 @@
       ✨ Выполнить задание
     </button>
 
-    <p id="status" class="text-center text-sm text-slate-400 mt-3"></p>
+    <div id="status" class="text-center text-sm text-slate-400 mt-3"></div>
+
+    <div id="success-animation" class="hidden mt-6 text-center">
+      <svg class="w-20 h-20 mx-auto text-emerald-400" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="8" fill="none"/>
+        <polyline class="checkmark" points="30,50 45,65 70,35" stroke="currentColor" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p class="text-xl font-bold text-emerald-400 mt-2">Выполнено!</p>
+      <p class="text-sm text-slate-400">Задание засчитано, награда получена</p>
+    </div>
   </div>
 
   <div id="error" class="hidden text-center text-red-400">
@@ -70,18 +96,18 @@
 
   <script>
     console.log('🚀 Mini App загружается...');
-    
+
     const tg = Telegram.WebApp;
     tg.ready();
     tg.expand();
-    
+
     console.log('✅ Telegram WebApp инициализирован');
     console.log('📱 initData:', tg.initData ? 'есть' : 'нет');
     console.log('👤 user:', tg.initDataUnsafe.user);
 
     const urlParams = new URLSearchParams(window.location.search);
     console.log('🔗 URL параметры:', Object.fromEntries(urlParams));
-    
+
     const task = {
       id: urlParams.get('task_id'),
       type: urlParams.get('type'),
@@ -107,7 +133,8 @@
       embedFrame: document.getElementById('embed-frame'),
       reactBtn: document.getElementById('react-btn'),
       completeBtn: document.getElementById('complete-btn'),
-      status: document.getElementById('status')
+      status: document.getElementById('status'),
+      successAnim: document.getElementById('success-animation')
     };
 
     const TASK_TYPES = {
@@ -121,7 +148,7 @@
 
     function init() {
       console.log('🔧 Инициализация задания...');
-      
+
       if (!task.id || !task.type) {
         console.error('❌ Нет task_id или type');
         showError('Неверные данные задания');
@@ -152,7 +179,7 @@
     function setupViewTask() {
       els.viewProgress.classList.remove('hidden');
       els.viewContent.classList.remove('hidden');
-      
+
       if (task.link) {
         console.log('🔗 Загрузка контента:', task.link);
         if (task.link.includes('t.me/')) {
@@ -170,14 +197,14 @@
 
       const minTime = TASK_TYPES.view.minTime;
       let remaining = minTime;
-      
+
       console.log(`⏱️ Таймер запущен: ${minTime} секунд`);
       timerInterval = setInterval(() => {
         timeSpent++;
         remaining = Math.max(0, minTime - timeSpent);
         els.timer.textContent = remaining;
         els.progressBar.style.width = `${(timeSpent / minTime) * 100}%`;
-        
+
         if (remaining <= 0) {
           clearInterval(timerInterval);
           console.log('✅ Время просмотра завершено');
@@ -190,12 +217,12 @@
     function setupReactTask() {
       els.reactBtn.classList.remove('hidden');
       console.log('✅ Кнопки реакций отображены');
-      
+
       document.querySelectorAll('.reaction-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const selectedReaction = btn.getAttribute('data-reaction');
           console.log(`🎭 Реакция выбрана: ${selectedReaction}`);
-          
+
           document.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
           reaction = selectedReaction;
@@ -240,16 +267,38 @@
         tg.sendData(JSON.stringify(verification));
         console.log('✅ sendData вызван успешно');
         els.status.textContent = '✅ Данные отправлены!';
-        
+
+        // Показываем анимацию успеха
+        els.completeBtn.classList.add('hidden');
+        els.successAnim.classList.remove('hidden');
+        generateConfetti();
+
         setTimeout(() => {
           console.log('🔒 Закрытие Mini App');
           tg.close();
-        }, 1000);
+        }, 2000);
       } catch (err) {
         console.error('❌ Ошибка sendData:', err);
         els.status.textContent = '❌ Ошибка отправки: ' + err.message;
+        els.completeBtn.disabled = false;
       }
     });
+
+    function generateConfetti() {
+      const colors = ['#f94144', '#f3722c', '#f8961e', '#f9c74f', '#90be6d', '#43aa8b', '#577590'];
+      for (let i = 0; i < 40; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti';
+        el.style.left = Math.random() * 100 + '%';
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        el.style.width = Math.random() * 8 + 4 + 'px';
+        el.style.height = Math.random() * 8 + 4 + 'px';
+        el.style.animationDuration = Math.random() * 1.5 + 1 + 's';
+        el.style.animationDelay = Math.random() * 0.5 + 's';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2500);
+      }
+    }
 
     function showError(msg) {
       console.error('❌ Ошибка:', msg);
