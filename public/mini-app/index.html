@@ -29,7 +29,6 @@
       <p class="text-sm opacity-90" id="task-reward">💰 15 PMC</p>
     </div>
 
-    <!-- Прогресс для VIEW -->
     <div id="view-progress" class="hidden mb-4">
       <p class="text-center text-sm text-slate-400 mb-2">Просмотрите контент <b id="timer">15</b> секунд</p>
       <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
@@ -37,13 +36,11 @@
       </div>
     </div>
 
-    <!-- Контент для VIEW -->
     <div id="view-content" class="hidden bg-slate-800 p-4 rounded-xl mb-4">
       <iframe id="embed-frame" class="w-full h-48 rounded-lg border border-slate-700" frameborder="0"></iframe>
       <p class="text-xs text-slate-500 mt-2">⚠️ Не закрывайте окно до завершения</p>
     </div>
 
-    <!-- ✅ Кнопки разных реакций для REACT -->
     <div id="react-btn" class="hidden mb-4">
       <p class="text-center text-sm text-slate-400 mb-3">Выберите любую реакцию:</p>
       <div class="grid grid-cols-4 gap-3">
@@ -59,7 +56,6 @@
       <p class="text-xs text-slate-500 mt-3 text-center">Нажмите на любую реакцию</p>
     </div>
 
-    <!-- Кнопка завершения -->
     <button id="complete-btn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed" disabled>
       ✨ Выполнить задание
     </button>
@@ -83,8 +79,12 @@
       type: urlParams.get('type'),
       title: urlParams.get('title'),
       reward: urlParams.get('reward'),
-      link: urlParams.get('link')
+      link: urlParams.get('link'),
+      chatId: urlParams.get('chat_id'),
+      messageId: urlParams.get('message_id')
     };
+
+    console.log('Task data:', task);
 
     const els = {
       loading: document.getElementById('loading'),
@@ -108,7 +108,7 @@
     };
 
     let timeSpent = 0;
-    let reaction = null; // Выбранная реакция
+    let reaction = null;
     let timerInterval = null;
 
     function init() {
@@ -165,16 +165,11 @@
     function setupReactTask() {
       els.reactBtn.classList.remove('hidden');
       
-      // ✅ Обработчики для всех кнопок реакций
       document.querySelectorAll('.reaction-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          // Убираем выделение с других кнопок
           document.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('selected'));
-          
-          // Выделяем выбранную
           btn.classList.add('selected');
           reaction = btn.getAttribute('data-reaction');
-          
           els.status.textContent = `Выбрана реакция: ${reaction}`;
           enableComplete();
         });
@@ -199,10 +194,13 @@
         user_id: tg.initDataUnsafe.user?.id,
         type: task.type,
         time_spent: timeSpent,
-        reaction: reaction, // ✅ Отправляем выбранную реакцию
+        reaction: reaction,
+        chat_id: task.chatId,
+        message_id: task.messageId,
         timestamp: Date.now()
       };
 
+      console.log('Sending verification:', verification);
       tg.sendData(JSON.stringify(verification));
       setTimeout(() => tg.close(), 1000);
     });
