@@ -69,11 +69,19 @@
   </div>
 
   <script>
+    console.log('🚀 Mini App загружается...');
+    
     const tg = Telegram.WebApp;
     tg.ready();
     tg.expand();
+    
+    console.log('✅ Telegram WebApp инициализирован');
+    console.log('📱 initData:', tg.initData ? 'есть' : 'нет');
+    console.log('👤 user:', tg.initDataUnsafe.user);
 
     const urlParams = new URLSearchParams(window.location.search);
+    console.log('🔗 URL параметры:', Object.fromEntries(urlParams));
+    
     const task = {
       id: urlParams.get('task_id'),
       type: urlParams.get('type'),
@@ -84,7 +92,7 @@
       messageId: urlParams.get('message_id')
     };
 
-    console.log('Task data:', task);
+    console.log('📋 Task данные:', task);
 
     const els = {
       loading: document.getElementById('loading'),
@@ -112,20 +120,33 @@
     let timerInterval = null;
 
     function init() {
+      console.log('🔧 Инициализация задания...');
+      
       if (!task.id || !task.type) {
+        console.error('❌ Нет task_id или type');
         showError('Неверные данные задания');
         return;
       }
 
+      console.log(`✅ Задание: ${task.title}, тип: ${task.type}`);
       els.title.textContent = task.title || 'Задание';
       els.reward.textContent = `💰 ${task.reward} PMC`;
 
-      if (task.type === 'view') setupViewTask();
-      else if (task.type === 'react') setupReactTask();
-      else { showError('Неподдерживаемый тип задания'); return; }
+      if (task.type === 'view') {
+        console.log('👁 Настройка задания просмотра');
+        setupViewTask();
+      } else if (task.type === 'react') {
+        console.log('❤️ Настройка задания реакции');
+        setupReactTask();
+      } else {
+        console.error('❌ Неизвестный тип:', task.type);
+        showError('Неподдерживаемый тип задания');
+        return;
+      }
 
       els.loading.classList.add('hidden');
       els.content.classList.remove('hidden');
+      console.log('✅ Контент отображён');
     }
 
     function setupViewTask() {
@@ -133,12 +154,14 @@
       els.viewContent.classList.remove('hidden');
       
       if (task.link) {
+        console.log('🔗 Загрузка контента:', task.link);
         if (task.link.includes('t.me/')) {
           const parts = task.link.split('/');
           const channel = parts[3];
           const postId = parts[4];
           if (channel && postId) {
             els.embedFrame.src = `https://t.me/${channel}/${postId}?embed=1&mode=dark`;
+            console.log('✅ Embed URL установлен');
           }
         } else {
           els.embedFrame.src = task.link;
@@ -148,6 +171,7 @@
       const minTime = TASK_TYPES.view.minTime;
       let remaining = minTime;
       
+      console.log(`⏱️ Таймер запущен: ${minTime} секунд`);
       timerInterval = setInterval(() => {
         timeSpent++;
         remaining = Math.max(0, minTime - timeSpent);
@@ -156,6 +180,7 @@
         
         if (remaining <= 0) {
           clearInterval(timerInterval);
+          console.log('✅ Время просмотра завершено');
           els.status.textContent = '✅ Время просмотра истекло!';
           enableComplete();
         }
@@ -164,12 +189,16 @@
 
     function setupReactTask() {
       els.reactBtn.classList.remove('hidden');
+      console.log('✅ Кнопки реакций отображены');
       
       document.querySelectorAll('.reaction-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+          const selectedReaction = btn.getAttribute('data-reaction');
+          console.log(`🎭 Реакция выбрана: ${selectedReaction}`);
+          
           document.querySelectorAll('.reaction-btn').forEach(b => b.classList.remove('selected'));
           btn.classList.add('selected');
-          reaction = btn.getAttribute('data-reaction');
+          reaction = selectedReaction;
           els.status.textContent = `Выбрана реакция: ${reaction}`;
           enableComplete();
         });
@@ -177,17 +206,21 @@
     }
 
     function enableComplete() {
+      console.log('🔓 Активация кнопки выполнения');
       if (task.type === 'view' && timeSpent >= TASK_TYPES.view.minTime) {
         els.completeBtn.disabled = false;
+        console.log('✅ Кнопка активирована (view)');
       }
       if (task.type === 'react' && reaction) {
         els.completeBtn.disabled = false;
+        console.log('✅ Кнопка активирована (react)');
       }
     }
 
     els.completeBtn.addEventListener('click', () => {
+      console.log('🚀 Кнопка выполнения нажата!');
       els.completeBtn.disabled = true;
-      els.status.textContent = '🔄 Проверка...';
+      els.status.textContent = '🔄 Отправка данных...';
 
       const verification = {
         task_id: task.id,
@@ -200,19 +233,38 @@
         timestamp: Date.now()
       };
 
-      console.log('Sending verification:', verification);
-      tg.sendData(JSON.stringify(verification));
-      setTimeout(() => tg.close(), 1000);
+      console.log('📤 Отправка данных боту:');
+      console.log(JSON.stringify(verification, null, 2));
+
+      try {
+        tg.sendData(JSON.stringify(verification));
+        console.log('✅ sendData вызван успешно');
+        els.status.textContent = '✅ Данные отправлены!';
+        
+        setTimeout(() => {
+          console.log('🔒 Закрытие Mini App');
+          tg.close();
+        }, 1000);
+      } catch (err) {
+        console.error('❌ Ошибка sendData:', err);
+        els.status.textContent = '❌ Ошибка отправки: ' + err.message;
+      }
     });
 
     function showError(msg) {
+      console.error('❌ Ошибка:', msg);
       els.loading.classList.add('hidden');
       els.error.classList.remove('hidden');
       els.error.querySelector('p').textContent = `❌ ${msg}`;
     }
 
-    if (window.location.search) init();
-    else showError('Откройте через Telegram-бота');
+    // Запуск
+    if (window.location.search) {
+      init();
+    } else {
+      console.error('❌ Нет параметров в URL');
+      showError('Откройте через Telegram-бота');
+    }
   </script>
 </body>
 </html>
