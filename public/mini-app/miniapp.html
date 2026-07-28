@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promix Casino</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* Стили для колеса, профиля, чата */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #fff; }
+    
+    /* Модальное окно условий */
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-content { background: #16213e; padding: 30px; border-radius: 20px; max-width: 400px; text-align: center; }
+    .modal h2 { margin-bottom: 20px; color: #ffd700; }
+    .modal p { margin-bottom: 30px; line-height: 1.6; }
+    .modal-buttons { display: flex; gap: 15px; justify-content: center; }
+    .btn { padding: 12px 30px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; }
+    .btn-secondary { background: #2d3748; color: #fff; }
+    
+    /* Навигация */
+    .nav { display: flex; background: #16213e; padding: 10px; gap: 10px; position: sticky; top: 0; z-index: 100; }
+    .nav-btn { flex: 1; padding: 12px; background: #0f3460; border: none; border-radius: 10px; color: #fff; font-weight: bold; cursor: pointer; }
+    .nav-btn.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    
+    /* Профиль */
+    .profile { padding: 20px; }
+    .profile-card { background: #16213e; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+    
+    /* Колесо */
+    .wheel-container { padding: 20px; text-align: center; }
+    .wheel { width: 300px; height: 300px; margin: 20px auto; position: relative; border-radius: 50%; border: 10px solid #ffd700; transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99); }
+    .spin-btn { padding: 20px 60px; font-size: 20px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border: none; border-radius: 15px; color: #fff; font-weight: bold; cursor: pointer; margin-top: 20px; }
+    .spin-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    /* Чат */
+    .chat { padding: 20px; height: calc(100vh - 200px); display: flex; flex-direction: column; }
+    .chat-messages { flex: 1; overflow-y: auto; background: #16213e; padding: 15px; border-radius: 15px; margin-bottom: 15px; }
+    .chat-input { display: flex; gap: 10px; }
+    .chat-input input { flex: 1; padding: 12px; background: #16213e; border: 2px solid #0f3460; border-radius: 10px; color: #fff; }
+    
+    /* Лидерборд */
+    .leaderboard { padding: 20px; }
+    .leader-item { background: #16213e; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; }
+    .leader-rank { font-size: 24px; font-weight: bold; color: #ffd700; min-width: 40px; }
+  </style>
+</head>
+<body>
+  <!-- Модальное окно условий использования -->
+  <div id="termsModal" class="modal">
+    <div class="modal-content">
+      <h2>🎰 Условия использования</h2>
+      <p>Открывая это мини-приложение, вы принимаете Условия использования мини-приложения Promix Casino.</p>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" onclick="closeApp()">Отмена</button>
+        <button class="btn btn-primary" onclick="acceptTerms()">Начать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Навигация -->
+  <div class="nav">
+    <button class="nav-btn active" onclick="showTab('profile')">👤 Профиль</button>
+    <button class="nav-btn" onclick="showTab('wheel')">🎰 Колесо</button>
+    <button class="nav-btn" onclick="showTab('chat')">💬 Чат</button>
+    <button class="nav-btn" onclick="showTab('leaderboard')">🏆 Топ</button>
+  </div>
+
+  <!-- Контент вкладок -->
+  <div id="profile" class="tab-content profile"></div>
+  <div id="wheel" class="tab-content wheel-container" style="display:none"></div>
+  <div id="chat" class="tab-content chat" style="display:none"></div>
+  <div id="leaderboard" class="tab-content leaderboard" style="display:none"></div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    let profile = null;
+    let spinning = false;
+
+    // Проверка условий использования
+    function acceptTerms() {
+      localStorage.setItem('terms_accepted', 'true');
+      document.getElementById('termsModal').style.display = 'none';
+      loadProfile();
+    }
+
+    function closeApp() {
+      tg.close();
+    }
+
+    // Показать модальное окно если условия не приняты
+    if (!localStorage.getItem('terms_accepted')) {
+      document.getElementById('termsModal').style.display = 'flex';
+    } else {
+      document.getElementById('termsModal').style.display = 'none';
+      loadProfile();
+    }
+
+    // Переключение вкладок
+    function showTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(tabName).style.display = 'block';
+      event.target.classList.add('active');
+
+      if (tabName === 'profile') loadProfile();
+      if (tabName === 'wheel') loadWheel();
+      if (tabName === 'chat') loadChat();
+      if (tabName === 'leaderboard') loadLeaderboard();
+    }
+
+    // Загрузка профиля
+    function loadProfile() {
+      tg.sendData(JSON.stringify({ action: 'get_profile' }));
+    }
+
+    // Загрузка колеса
+    function loadWheel() {
+      const container = document.getElementById('wheel');
+      container.innerHTML = `
+        <h2>🎰 Колесо Фортуны</h2>
+        <p>Осталось спинов: <span id="spinsLeft">-</span></p>
+        <div class="wheel" id="wheelDisc"></div>
+        <button class="spin-btn" id="spinBtn" onclick="spin()">КРУТИТЬ!</button>
+      `;
+      if (profile) {
+        document.getElementById('spinsLeft').textContent = profile.spins_left;
+        document.getElementById('spinBtn').disabled = profile.spins_left <= 0 || spinning;
+      }
+    }
+
+    // Спин колеса
+    function spin() {
+      if (spinning || profile.spins_left <= 0) return;
+      spinning = true;
+      document.getElementById('spinBtn').disabled = true;
+      tg.sendData(JSON.stringify({ action: 'spin' }));
+    }
+
+    // Загрузка чата
+    function loadChat() {
+      tg.sendData(JSON.stringify({ action: 'get_chat' }));
+    }
+
+    // Отправка сообщения
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+      tg.sendData(JSON.stringify({ action: 'send_message', message }));
+      input.value = '';
+    }
+
+    // Загрузка лидерборда
+    function loadLeaderboard() {
+      tg.sendData(JSON.stringify({ action: 'leaderboard' }));
+    }
+
+    // Обработка ответов от бота
+    window.addEventListener('message', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        
+        if (data.type === 'profile') {
+          profile = data.data;
+          renderProfile();
+          if (document.getElementById('wheel').style.display !== 'none') loadWheel();
+        }
+
+        if (data.type === 'spin_result') {
+          spinning = false;
+          if (data.data.success) {
+            alert(`🎉 Вы выиграли: ${data.data.prize.label}!`);
+            profile.spins_left = data.data.spins_left;
+            loadWheel();
+            loadProfile();
+          } else {
+            alert('❌ ' + data.data.reason);
+          }
+        }
+
+        if (data.type === 'chat') {
+          renderChat(data.data);
+        }
+
+        if (data.type === 'leaderboard') {
+          renderLeaderboard(data.data);
+        }
+      } catch (err) {
+        console.error('Parse error:', err);
+      }
+    });
+
+    function renderProfile() {
+      const container = document.getElementById('profile');
+      container.innerHTML = `
+        <div class="profile-card">
+          <h2>👤 ${profile.username}</h2>
+          <p>💰 Баланс: <b>${profile.balance.toLocaleString()} PMC</b></p>
+          <p>⚡ XP: <b>${profile.xp}</b> | 🏆 Уровень: <b>${profile.level}</b></p>
+          <p>👑 VIP: <b>${profile.is_vip ? '✅ Активен' : '❌'}</b></p>
+          <p>🎰 Спинов: <b>${profile.spins_left}/${profile.max_spins}</b></p>
+          <p>🏆 Побед: <b>${profile.total_wins}</b></p>
+          <p>💎 Выиграно всего: <b>${profile.total_won} PMC</b></p>
+        </div>
+      `;
+    }
+
+    function renderChat(messages) {
+      const container = document.getElementById('chat');
+      container.innerHTML = `
+        <div class="chat-messages" id="chatMessages">
+          ${messages.map(m => `
+            <div style="margin-bottom: 10px;">
+              <b style="color: #667eea;">@${m.username}</b>
+              <span style="color: #888; font-size: 12px;">${new Date(m.created_at).toLocaleTimeString()}</span>
+              <p>${m.message}</p>
+            </div>
+          `).join('')}
+        </div>
+        <div class="chat-input">
+          <input type="text" id="chatInput" placeholder="Сообщение..." onkeypress="if(event.key==='Enter')sendMessage()">
+          <button class="btn btn-primary" onclick="sendMessage()">📤</button>
+        </div>
+      `;
+      document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+    }
+
+    function renderLeaderboard(board) {
+      const container = document.getElementById('leaderboard');
+      const medals = ['🥇', '🥈', '🥉'];
+      container.innerHTML = `
+        <h2 style="margin-bottom: 20px;">🏆 Топ игроков</h2>
+        ${board.map((u, i) => `
+          <div class="leader-item">
+            <div class="leader-rank">${medals[i] || (i + 1)}</div>
+            <div style="flex: 1;">
+              <b>@${u.username || u.tg_id}</b>
+              <p style="color: #888; font-size: 14px;">Выиграно: ${u.total_won} PMC | Спинов: ${u.total_spins}</p>
+            </div>
+          </div>
+        `).join('')}
+      `;
+    }
+  </script>
+</body>
+</html>
